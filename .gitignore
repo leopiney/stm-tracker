@@ -1,4 +1,6 @@
 *.pyc
 .env
+.env.json
+.ipynb_checkpoints
 .DS_store
 __pycache__
