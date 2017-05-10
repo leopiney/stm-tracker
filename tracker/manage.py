@@ -1,11 +1,11 @@
 import logging
 import random
 import time
-import sys
 
 from datetime import datetime
 from threading import Thread
 
+from fire import Fire
 from retrying import retry
 
 from models import BusLine, BusLinePath, BusUnit, Log
@@ -13,6 +13,15 @@ from tracker import BusTracker
 
 
 logger = logging.getLogger('stm_tracker')
+logger.setLevel(logging.DEBUG)
+
+fmt = logging.Formatter('%(asctime)-15s - %(message)s')
+
+ch = logging.StreamHandler()
+ch.setFormatter(fmt)
+ch.setLevel(logging.DEBUG)
+
+logger.addHandler(ch)
 
 
 class BusManager(object):
@@ -151,43 +160,32 @@ class BusManager(object):
         main_thread.wait()
 
 
-@retry(wait_fixed=600_000)
-def main(bus):
-    """
-    Waits 10 minutes if something goes wrong
-    """
-    try:
-        m = BusManager(bus)
-        m.track_units()
-    except KeyboardInterrupt:
-        logger.error('Killing process')
-    except Exception as ex:
-        logger.exception('A badass error happened. Waiting 10 minutes until retry')
-        raise
+class Manage(object):
+
+    def init(self, line):
+        m = BusManager(line)
+        m.create_path_for_bus_line()
+
+    def track(self, line):
+        fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(line))
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(fmt)
+
+        logger.addHandler(fh)
+
+        @retry(wait_fixed=600_000)
+        def secure_track():
+            try:
+                m = BusManager(line)
+                m.track_units()
+            except KeyboardInterrupt:
+                logger.error('Killing process')
+            except Exception as ex:
+                logger.exception('A badass error happened. Waiting 10 minutes until retry')
+                raise
+
+        secure_track()
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        bus = sys.argv[1]
-    else:
-        print('Please specify a bus line')
-        exit(1)
-
-    logger.setLevel(logging.DEBUG)
-
-    fmt = logging.Formatter('%(asctime)-15s - %(message)s')
-
-    ch = logging.StreamHandler()
-    ch.setFormatter(fmt)
-    ch.setLevel(logging.DEBUG)
-
-    fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(bus))
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(fmt)
-
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-
-    logger.info('STM Tracker started for line: {}'.format(bus))
-    main(bus)
-    logger.info('STM Tracker ended')
+    Fire(Manage)
