@@ -1,8 +1,9 @@
-import asyncio
 import logging
 import random
+import time
 
 from datetime import datetime
+from threading import Thread
 
 from retrying import retry
 
@@ -63,7 +64,7 @@ class BusManager(object):
                     )
         logger.info('Finished')
 
-    async def update_and_track_units(self):
+    def update_and_track_units(self):
         while not self.exit:
             units_predictions = self.tracker.get_current_units_for_bus_line(self.bus)
 
@@ -100,18 +101,19 @@ class BusManager(object):
             for unit in current_units:
                 if unit not in previous_units:
                     logger.info('Adding {} to units collection'.format(unit))
-                    self.tasks.append(
-                        self.loop.create_task(self.track_unit_location(unit))
-                    )
+                    t = Thread(target=self.track_unit_location, args=(unit,))
+                    t.start()
+
+                    self.tasks.append(t)
 
             logger.info('Current task count {} for units: {}'.format(
                 len(self.tasks),
                 list(self.units.keys()),
             ))
 
-            await asyncio.sleep(300)
+            time.sleep(300)
 
-    async def track_unit_location(self, unit):
+    def track_unit_location(self, unit):
         last_location = None
         logger.info('Tracking {} location'.format(unit))
 
@@ -152,14 +154,14 @@ class BusManager(object):
                     timestamp=datetime.utcnow(),
                 )
 
-            await asyncio.sleep(int(15 + random.uniform(-3, 3)))
+            time.sleep(int(15 + random.uniform(-3, 3)))
 
         logger.info('Stop tracking {}'.format(unit))
 
     def track_units(self):
-        self.loop = asyncio.get_event_loop()
-        self.loop.run_until_complete(self.update_and_track_units())
-        self.loop.close()
+        main_thread = Thread(target=self.update_and_track_units)
+        main_thread.start()
+        main_thread.wait()
 
 
 @retry(wait_fixed=600_000)
