@@ -1,6 +1,7 @@
 import logging
 import random
 import time
+import sys
 
 from datetime import datetime
 from threading import Thread
@@ -12,20 +13,6 @@ from tracker import BusTracker
 
 
 logger = logging.getLogger('stm_tracker')
-logger.setLevel(logging.DEBUG)
-
-fmt = logging.Formatter('%(asctime)-15s - %(message)s')
-
-ch = logging.StreamHandler()
-ch.setFormatter(fmt)
-ch.setLevel(logging.DEBUG)
-
-fh = logging.FileHandler(filename='stm_tracker.log')
-fh.setLevel(logging.INFO)
-fh.setFormatter(fmt)
-
-logger.addHandler(ch)
-logger.addHandler(fh)
 
 
 class BusManager(object):
@@ -165,12 +152,12 @@ class BusManager(object):
 
 
 @retry(wait_fixed=600_000)
-def main():
+def main(bus):
     """
     Waits 10 minutes if something goes wrong
     """
     try:
-        m = BusManager('192')
+        m = BusManager(bus)
         m.track_units()
     except KeyboardInterrupt:
         logger.error('Killing process')
@@ -180,6 +167,27 @@ def main():
 
 
 if __name__ == '__main__':
-    logger.info('STM Tracker started')
-    main()
+    if len(sys.argv) > 1:
+        bus = sys.argv[1]
+    else:
+        print('Please specify a bus line')
+        exit(1)
+
+    logger.setLevel(logging.DEBUG)
+
+    fmt = logging.Formatter('%(asctime)-15s - %(message)s')
+
+    ch = logging.StreamHandler()
+    ch.setFormatter(fmt)
+    ch.setLevel(logging.DEBUG)
+
+    fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(bus))
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+
+    logger.info('STM Tracker started for line: {}'.format(bus))
+    main(bus)
     logger.info('STM Tracker ended')
