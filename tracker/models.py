@@ -1,11 +1,16 @@
-from threading import Semaphore
-
-from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model, SqliteDatabase, \
+from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model, \
     FloatField, TimestampField
+from playhouse.pool import PooledSqliteExtDatabase
 
 
-db = SqliteDatabase('../data/LightSTM.db', check_same_thread=False)
-sem = Semaphore(1)
+db = PooledSqliteExtDatabase(
+    '../data/LightSTM.db',
+    check_same_thread=False,
+    max_connections=10,
+    pragmas=[('journal_mode', 'wal')],
+    stale_timeout=3600,
+    timeout=0,  # Blocks until database is released again.
+)
 
 
 class BaseModel(Model):
@@ -18,21 +23,6 @@ class BaseModel(Model):
             return cls.get(*query)
         except cls.DoesNotExist:
             return None
-
-    @classmethod
-    def create(cls, *args, **kwargs):
-        sem.acquire()
-        try:
-            instance = super().create(*args, **kwargs)
-            sem.release()
-            return instance
-        except Exception as ex:
-            sem.release()
-            raise Exception(
-                'ERROR creating instance of class {} with attributes {} {}: {}'.format(
-                    cls.__name__, args, kwargs, ex
-                )
-            )
 
     class Meta:
         database = db
