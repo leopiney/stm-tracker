@@ -111,6 +111,7 @@ class BusManager(object):
                     t = Thread(target=self.track_unit_location, args=(unit,))
                     t.start()
 
+                    time.sleep(int(random.uniform(2, 5)))
                     self.tasks.append(t)
 
             self.logger.info('Current task count {} for units: {}'.format(
