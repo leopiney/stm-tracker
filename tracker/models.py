@@ -1,8 +1,11 @@
+from threading import Semaphore
+
 from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model, SqliteDatabase, \
     FloatField, TimestampField
 
 
 db = SqliteDatabase('../data/LightSTM.db', threadlocals=True)
+sem = Semaphore(1)
 
 
 class BaseModel(Model):
@@ -15,6 +18,12 @@ class BaseModel(Model):
             return cls.get(*query)
         except cls.DoesNotExist:
             return None
+
+    @classmethod
+    def create(cls, *args, **kwargs):
+        sem.acquire()
+        super().create(*args, **kwargs)
+        sem.release()
 
     class Meta:
         database = db
