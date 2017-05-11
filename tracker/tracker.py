@@ -6,7 +6,6 @@ from settings import Settings
 
 
 base_url = Settings.BASE_URL
-logger = logging.getLogger('stm_tracker')
 
 
 class BusTracker(object):
@@ -31,6 +30,7 @@ class BusTracker(object):
         predict_url = 'getStopPrediction/{stop_ext_id}/{bus}'
         res = requests.get(base_url + predict_url.format(stop_ext_id=external_id, bus=bus))
 
+        logger = logging.getLogger('stm_tracker_{}'.format(bus))
         logger.debug('Fetched getStopPrediction/{}/{}: {}'.format(external_id, bus, res.content))
         if res:
             return res.json()['PredictionsData']
@@ -88,6 +88,7 @@ class BusTracker(object):
                 .order_by(BusLinePath.sequence)
             )
 
+            logger = logging.getLogger('stm_tracker_{}'.format(bus))
             logger.debug('Got {} stops for line {} ({})'.format(len(stops), line, line.variant_id))
 
             sequences_type_2 = [

@@ -2,7 +2,7 @@ from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model
     FloatField, TimestampField
 
 
-db = SqliteDatabase('../data/LightSTM.db')
+db = SqliteDatabase('../data/LightSTM.db', threadlocals=True)
 
 
 class BaseModel(Model):

@@ -12,22 +12,31 @@ from models import BusLine, BusLinePath, BusUnit, Log
 from tracker import BusTracker
 
 
-logger = logging.getLogger('stm_tracker')
-logger.setLevel(logging.DEBUG)
+def get_logger_for_line(line):
+    logger = logging.getLogger('stm_tracker_{}'.format(line))
+    logger.setLevel(logging.DEBUG)
 
-fmt = logging.Formatter('%(asctime)-15s - %(message)s')
+    fmt = logging.Formatter('%(asctime)-15s - {} - %(message)s'.format(line))
 
-ch = logging.StreamHandler()
-ch.setFormatter(fmt)
-ch.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setFormatter(fmt)
+    ch.setLevel(logging.DEBUG)
 
-logger.addHandler(ch)
+    fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(line))
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+
+    return logger
 
 
 class BusManager(object):
 
-    def __init__(self, bus):
+    def __init__(self, bus, logger):
         self.exit = False
+        self.logger = logger
 
         self.bus = bus
         self.tracker = BusTracker()
@@ -40,17 +49,19 @@ class BusManager(object):
         lines = BusLine.select().where(BusLine.bus == self.bus)
 
         for line in lines:
-            logger.debug(
+            self.logger.debug(
                 'Finding path for bus line {l.bus} with destination {l.destination}'.format(l=line)
             )
 
             points = self.tracker.get_bus_line_path(line)
             if points:
                 for point in points:
-                    logger.debug('\tCreating path point with sequence {} and external_id {}'.format(
-                        point['Sequence'],
-                        point['ExternalId']
-                    ))
+                    self.logger.debug(
+                        '\tCreating path point with sequence {} and external_id {}'.format(
+                            point['Sequence'],
+                            point['ExternalId']
+                        )
+                    )
                     BusLinePath.create(
                         line=line,
                         sequence=point['Sequence'],
@@ -58,7 +69,7 @@ class BusManager(object):
                         name=point['Name'],
                         type=point['Type'],
                     )
-        logger.info('Finished')
+        self.logger.info('Finished')
 
     def update_and_track_units(self):
         while not self.exit:
@@ -76,7 +87,7 @@ class BusManager(object):
                         universal_access=unit_prediction['UniversalAccess']
                     )
                 )
-                logger.debug('Got prediction for {}'.format(unit))
+                self.logger.debug('Got prediction for {}'.format(unit))
 
                 current_units.append(unit)
                 self.units[unit] = unit_prediction
@@ -84,25 +95,25 @@ class BusManager(object):
             # Remove duplicates from current_units
             current_units = list(set(current_units))
 
-            logger.info('Previous units: {}'.format(previous_units))
-            logger.info('Current units: {}'.format(current_units))
+            self.logger.info('Previous units: {}'.format(previous_units))
+            self.logger.info('Current units: {}'.format(current_units))
 
             # Removes units that no longer need to be tracked
             for unit in previous_units:
                 if unit not in current_units:
-                    logger.info('Removed {} from units collection'.format(unit))
+                    self.logger.info('Removed {} from units collection'.format(unit))
                     del self.units[unit]
 
             # Start a new tracking coroutine for the new units
             for unit in current_units:
                 if unit not in previous_units:
-                    logger.info('Adding {} to units collection'.format(unit))
+                    self.logger.info('Adding {} to units collection'.format(unit))
                     t = Thread(target=self.track_unit_location, args=(unit,))
                     t.start()
 
                     self.tasks.append(t)
 
-            logger.info('Current task count {} for units: {}'.format(
+            self.logger.info('Current task count {} for units: {}'.format(
                 len(self.tasks),
                 list(self.units.keys()),
             ))
@@ -111,7 +122,7 @@ class BusManager(object):
 
     def track_unit_location(self, unit):
         last_location = None
-        logger.info('Tracking {} location'.format(unit))
+        self.logger.info('Tracking {} location'.format(unit))
 
         while not self.exit:
             unit_prediction = self.units.get(unit)
@@ -125,7 +136,7 @@ class BusManager(object):
 
             line = BusLine.get(variant_id=unit_prediction['VariantId'])
 
-            logger.debug('Getting location information for {}'.format(unit))
+            self.logger.debug('Getting location information for {}'.format(unit))
             location = self.tracker.get_unit_location(unit.unit_id)
 
             if (
@@ -133,10 +144,11 @@ class BusManager(object):
                 location['Latitude'] != last_location['Latitude'] or
                 location['Longitude'] != last_location['Longitude']
             ):
-                logger.debug('New location ({}, {}) for {}'.format(
+                self.logger.debug('New location ({}, {}) for {} (with ID: {})'.format(
                     location['Latitude'],
                     location['Longitude'],
                     unit,
+                    unit.id,
                 ))
 
                 last_location = location
@@ -152,39 +164,49 @@ class BusManager(object):
 
             time.sleep(int(15 + random.uniform(-3, 3)))
 
-        logger.info('Stop tracking {}'.format(unit))
-
-    def track_units(self):
-        main_thread = Thread(target=self.update_and_track_units)
-        main_thread.start()
-        main_thread.wait()
+        self.logger.info('Stop tracking {}'.format(unit))
 
 
 class Manage(object):
 
     def init(self, line):
-        m = BusManager(line)
+        """
+        @param line:   A line number to initialize in the database.
+        """
+        logger = get_logger_for_line(line)
+
+        m = BusManager(line, logger)
         m.create_path_for_bus_line()
 
-    def track(self, line):
-        fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(line))
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(fmt)
+    def track(self, lines):
+        """
+        @param lines:   A list of comma separated lines to track.
+        """
+        threads = []
 
-        logger.addHandler(fh)
+        for line in lines:
+            logger = get_logger_for_line(line)
 
-        @retry(wait_fixed=600_000)
-        def secure_track():
-            try:
-                m = BusManager(line)
-                m.track_units()
-            except KeyboardInterrupt:
-                logger.error('Killing process')
-            except Exception as ex:
-                logger.exception('A badass error happened. Waiting 10 minutes until retry')
-                raise
+            @retry(wait_fixed=600_000)
+            def secure_track():
+                try:
+                    m = BusManager(line, logger)
+                    m.update_and_track_units()
+                except KeyboardInterrupt:
+                    logger.error('Killing process')
+                except Exception as ex:
+                    logger.exception('A badass error happened. Waiting 10 minutes until retry')
+                    raise
 
-        secure_track()
+            thread = Thread(target=secure_track)
+            thread.start()
+
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        print('All threads terminated successfully')
 
 
 if __name__ == '__main__':
