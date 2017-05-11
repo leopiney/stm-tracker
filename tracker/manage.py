@@ -87,6 +87,11 @@ class BusManager(object):
                         universal_access=unit_prediction['UniversalAccess']
                     )
                 )
+
+                # When creating ID could be null :/
+                if unit.id is None:
+                    unit = BusUnit.get(BusUnit.unit_id == unit.unit_id)
+
                 self.logger.debug('Got prediction for {}'.format(unit))
 
                 current_units.append(unit)

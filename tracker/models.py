@@ -29,8 +29,8 @@ class BaseModel(Model):
         except Exception as ex:
             sem.release()
             raise Exception(
-                'ERROR creating instance of class {} with attributes {}: {}'.format(
-                    cls.__name__, args, ex
+                'ERROR creating instance of class {} with attributes {} {}: {}'.format(
+                    cls.__name__, args, kwargs, ex
                 )
             )
 
