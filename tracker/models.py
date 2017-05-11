@@ -4,7 +4,7 @@ from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model
     FloatField, TimestampField
 
 
-db = SqliteDatabase('../data/LightSTM.db', threadlocals=True)
+db = SqliteDatabase('../data/LightSTM.db', check_same_thread=False)
 sem = Semaphore(1)
 
 
