@@ -22,8 +22,15 @@ class BaseModel(Model):
     @classmethod
     def create(cls, *args, **kwargs):
         sem.acquire()
-        super().create(*args, **kwargs)
-        sem.release()
+        try:
+            instance = super().create(*args, **kwargs)
+            sem.release()
+            return instance
+        except Exception:
+            sem.release()
+            raise Exception(
+                'ERROR creating instance of class {} with attributes {}'.format(cls.__name__, args)
+            )
 
     class Meta:
         database = db
