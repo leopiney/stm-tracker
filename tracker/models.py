@@ -26,10 +26,12 @@ class BaseModel(Model):
             instance = super().create(*args, **kwargs)
             sem.release()
             return instance
-        except Exception:
+        except Exception as ex:
             sem.release()
             raise Exception(
-                'ERROR creating instance of class {} with attributes {}'.format(cls.__name__, args)
+                'ERROR creating instance of class {} with attributes {}: {}'.format(
+                    cls.__name__, args, ex
+                )
             )
 
     class Meta:

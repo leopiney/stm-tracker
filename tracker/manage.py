@@ -139,11 +139,11 @@ class BusManager(object):
             self.logger.debug('Getting location information for {}'.format(unit))
             location = self.tracker.get_unit_location(unit.unit_id)
 
-            if (
+            if (location is not None and (
                 last_location is None or
                 location['Latitude'] != last_location['Latitude'] or
                 location['Longitude'] != last_location['Longitude']
-            ):
+            )):
                 self.logger.debug('New location ({}, {}) for {} (with ID: {})'.format(
                     location['Latitude'],
                     location['Longitude'],
