@@ -3,6 +3,7 @@ import random
 import time
 
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from threading import Thread
 
 from fire import Fire
@@ -22,8 +23,12 @@ def get_logger_for_line(line):
     ch.setFormatter(fmt)
     ch.setLevel(logging.DEBUG)
 
-    fh = logging.FileHandler(filename='stm_tracker_{}.log'.format(line))
-    fh.setLevel(logging.INFO)
+    fh = RotatingFileHandler(
+        filename='stm_tracker_{}.log'.format(line),
+        maxBytes=20 * 1024,  # 20MB
+        backupCount=5,
+    )
+    fh.setLevel(logging.DEBUG)
     fh.setFormatter(fmt)
 
     logger.addHandler(ch)
