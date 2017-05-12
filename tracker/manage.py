@@ -145,7 +145,14 @@ class BusManager(object):
             if unit_prediction is None:
                 break
 
-            line = BusLine.get(variant_id=unit_prediction['VariantId'])
+            line = BusLine.get_or_none(variant_id=unit_prediction['VariantId'])
+
+            if line is None:
+                self.logger.error(
+                    'Could not get BusLine for prediction: {}'.format(unit_prediction)
+                )
+                time.sleep(int(15 + random.uniform(-3, 3)))
+                continue
 
             self.logger.debug('Getting location information for {}'.format(unit))
             location = self.tracker.get_unit_location(unit.unit_id)
