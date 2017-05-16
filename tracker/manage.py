@@ -25,7 +25,7 @@ def get_logger_for_line(line):
 
     fh = RotatingFileHandler(
         filename='stm_tracker_{}.log'.format(line),
-        maxBytes=20 * 1024,  # 20MB
+        maxBytes=20 * 1024 ** 2,  # 20MB
         backupCount=5,
     )
     fh.setLevel(logging.DEBUG)
