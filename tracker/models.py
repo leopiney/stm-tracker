@@ -9,7 +9,7 @@ db = PooledSqliteExtDatabase(
     max_connections=10,
     pragmas=[('journal_mode', 'wal')],
     stale_timeout=3600,
-    timeout=0,  # Blocks until database is released again.
+    timeout=10,  # Blocks until database is released again with a max of 10 secs.
 )
 
 
