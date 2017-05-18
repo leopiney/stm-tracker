@@ -2,6 +2,8 @@ import logging
 import random
 import time
 
+import requests
+
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from threading import Thread
@@ -10,7 +12,7 @@ from fire import Fire
 from retrying import retry
 
 from models import BusLine, BusLinePath, BusUnit, Log
-from tracker import BusTracker
+from tracker import BusTracker, APIEmptyResponseException
 
 
 def get_logger_for_line(line):
@@ -218,6 +220,13 @@ class Manage(object):
                     m.update_and_track_units()
                 except KeyboardInterrupt:
                     logger.error('Killing process')
+                except APIEmptyResponseException:
+                    logger.exception(
+                        'API responded with empty response. Waiting 10 minutes until retry')
+                    raise
+                except requests.HTTPError:
+                    logger.exception('HTTPError occurred. Waiting 10 minutes until retry')
+                    raise
                 except Exception as ex:
                     logger.exception('A badass error happened. Waiting 10 minutes until retry')
                     raise

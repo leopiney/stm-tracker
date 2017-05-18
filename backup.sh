@@ -8,7 +8,7 @@
 # 00 4 * * * /backup.sh
 #
 
-TIME=`date +%b-%d-%y`               # This Command will add date in Backup File Name.
+TIME=`date +%Y-%m-%d`               # This Command will add date in Backup File Name.
 FILENAME=LightSTM.db-$TIME.tar.gz   # Here i define Backup file name format.
 SRCDIR=~/stm-tracker/data           # Location of Important Data Directory (Source of backup).
 DESDIR=~/backups                    # Destination of backup file.

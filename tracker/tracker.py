@@ -5,7 +5,22 @@ from models import BusLine, BusLinePath
 from settings import Settings
 
 
-base_url = Settings.BASE_URL
+class APIEmptyResponseException(Exception):
+    pass
+
+
+class API(object):
+    base_url = Settings.BASE_URL
+
+    @classmethod
+    def get(cls, url):
+        res = requests.get(cls.base_url + url)
+        res.raise_for_status()
+
+        if res:
+            return res.json()
+        else:
+            raise APIEmptyResponseException('Empty response getting url {}'.format(url))
 
 
 class BusTracker(object):
@@ -27,13 +42,15 @@ class BusTracker(object):
             "VariantId":1163
         }
         """
-        predict_url = 'getStopPrediction/{stop_ext_id}/{bus}'
-        res = requests.get(base_url + predict_url.format(stop_ext_id=external_id, bus=bus))
+        res = API.get('getStopPrediction/{stop_ext_id}/{bus}'.format(
+            stop_ext_id=external_id,
+            bus=bus
+        ))
 
         logger = logging.getLogger('stm_tracker_{}'.format(bus))
-        logger.debug('Fetched getStopPrediction/{}/{}: {}'.format(external_id, bus, res.content))
-        if res:
-            return res.json()['PredictionsData']
+        logger.debug('Fetched getStopPrediction/{}/{}: {}'.format(external_id, bus, res))
+
+        return res['PredictionsData']
 
     def get_unit_location(self, unit_id):
         """
@@ -47,17 +64,14 @@ class BusTracker(object):
         }
         """
         location_url = 'getBusLocation/{}'
-        res = requests.get(base_url + location_url.format(unit_id))
 
-        if res:
-            return res.json()['BusLocationData']
+        res = API.get(location_url.format(unit_id))
+        return res['BusLocationData']
 
     def get_bus_line_path(self, line):
         line_path_url = 'GetBusPath/{variant_id}'
-        res = requests.get(base_url + line_path_url.format(variant_id=line.variant_id))
-
-        if (res):
-            return res.json()['Points']
+        res = API.get(line_path_url.format(variant_id=line.variant_id))
+        return res['Points']
 
     def get_current_units_for_bus_line(self, bus):
         """
