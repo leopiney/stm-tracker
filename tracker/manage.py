@@ -17,7 +17,9 @@ def get_logger_for_line(line):
     logger = logging.getLogger('stm_tracker_{}'.format(line))
     logger.setLevel(logging.DEBUG)
 
-    fmt = logging.Formatter('%(asctime)-15s - {} - %(message)s'.format(line))
+    fmt = logging.Formatter(
+        '%(asctime)-15s - %(levelname)s - Thread:%(thread)d - Line:{} - %(message)s'.format(line)
+    )
 
     ch = logging.StreamHandler()
     ch.setFormatter(fmt)
