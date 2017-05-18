@@ -1,15 +1,10 @@
 from peewee import BooleanField, CharField, IntegerField, ForeignKeyField, Model, \
-    FloatField, TimestampField
-from playhouse.pool import PooledSqliteExtDatabase
+    FloatField, SqliteDatabase, TimestampField
 
 
-db = PooledSqliteExtDatabase(
+db = SqliteDatabase(
     '../data/LightSTM.db',
-    check_same_thread=False,
-    max_connections=10,
-    pragmas=[('journal_mode', 'wal')],
-    stale_timeout=3600,
-    timeout=10,  # Blocks until database is released again with a max of 10 secs.
+    check_same_thread=False
 )
 
 
