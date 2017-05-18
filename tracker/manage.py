@@ -62,16 +62,20 @@ class BusManager(object):
             if points:
                 for point in points:
                     self.logger.debug(
-                        '\tCreating path point with sequence {} and external_id {}'.format(
+                        '\tCreating path point with sequence {}, external_id {} and name {}'.format(
                             point['Sequence'],
-                            point['ExternalId']
+                            point['ExternalId'],
+                            point.get('Name')
                         )
                     )
+                    if point.get('Name') is None:
+                        self.logger.warning('Line path point without name')
+
                     BusLinePath.create(
                         line=line,
                         sequence=point['Sequence'],
                         external_id=point['ExternalId'],
-                        name=point['Name'],
+                        name=point.get('Name', 'no-name'),
                         type=point['Type'],
                     )
         self.logger.info('Finished')
